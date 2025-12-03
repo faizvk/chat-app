@@ -1,91 +1,219 @@
-import Product from "../model/prodect.model.js";
 import express from "express";
+import mongoose from "mongoose";
+import Product from "../model/product.model.js";
+import { verifyToken } from "../auth/auth.middleware.js";
+import AutherizeRole from "../auth/role.middleware.js";
 
 const router = express.Router();
 
-router.post("/createProduct", async (req, res) => {
-  const product = req.body;
-  if (!product) {
-    return res.status(400).send("product not created.");
+router.post(
+  "/product",
+  verifyToken,
+  AutherizeRole("admin"),
+  async (req, res) => {
+    try {
+      const product = req.body;
+
+      if (!product || Object.keys(product).length === 0) {
+        return res.status(400).json({
+          message: "Product data is required",
+        });
+      }
+
+      const createdProduct = await Product.create(product);
+
+      res.status(201).json({
+        message: "Product created successfully",
+        success: true,
+        product: createdProduct,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to create product",
+        error: error.message,
+      });
+    }
   }
+);
 
-  const createdProduct = await Product.create(product);
+router.get("/product", async (req, res) => {
+  try {
+    const products = await Product.find();
 
-  res.status(201).json({
-    message: "product created",
-    success: true,
-    createdProduct,
-  });
+    if (!products || products.length === 0) {
+      return res.status(404).json({
+        message: "No products found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch products",
+      error: error.message,
+    });
+  }
 });
 
-router.get("/fetchAll", async (req, res) => {
-  const products = await Product.find();
-  if (products.lenghth === 0) {
-    return res.status(404).send("No products.");
-  }
+router.get("/product/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  res.status(200).json({
-    products,
-  });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      product,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch product",
+      error: error.message,
+    });
+  }
 });
 
-router.get("/fetch/:id", async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findById(id);
-  if (!product) {
-    return res.status(404).send("product not found");
+router.put(
+  "/product/:id",
+  verifyToken,
+  AutherizeRole("admin"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          message: "Invalid product ID",
+        });
+      }
+
+      const product = await Product.findByIdAndUpdate(id, data, {
+        new: true,
+        runValidators: true,
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          message: "Product does not exist",
+        });
+      }
+
+      res.status(200).json({
+        message: "Product updated successfully",
+        success: true,
+        product,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to update product",
+        error: error.message,
+      });
+    }
   }
-  res.status(200).json({
-    product,
-  });
-});
+);
 
-router.put("/updateProduct/:id", async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
+router.delete(
+  "/product/:id",
+  verifyToken,
+  AutherizeRole("admin"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
 
-  const product = await Product.findByIdAndUpdate(id, data, {
-    new: true,
-    runValidators: true,
-  });
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          message: "Invalid product ID",
+        });
+      }
 
-  if (!product) {
-    return res.status(404).send("product dont exist.");
+      const deletedProduct = await Product.findByIdAndDelete(id);
+
+      if (!deletedProduct) {
+        return res.status(404).json({
+          message: "Product not found",
+        });
+      }
+
+      res.status(200).json({
+        message: "Product deleted successfully",
+        success: true,
+        product: deletedProduct,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to delete product",
+        error: error.message,
+      });
+    }
   }
+);
 
-  res.status(200).json({
-    message: "product updated",
-    product,
-  });
-});
+router.get("/product/search", async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      minPrice,
+      maxPrice,
+      sortBy,
+      order = "asc",
+    } = req.query;
 
-router.delete("/deleteProduct/:id", async (req, res) => {
-  const { id } = req.params;
-  const deletedProduct = await Product.findByIdAndDelete(id);
+    let filter = {};
 
-  if (!deletedProduct) {
-    return res.status(404).json({ message: "Product not found" });
+    if (name) {
+      filter.name = { $regex: name, $options: "i" };
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (minPrice || maxPrice) {
+      filter.salePrice = {};
+      if (minPrice) filter.salePrice.$gte = Number(minPrice);
+      if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
+    }
+
+    let sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = order === "desc" ? -1 : 1;
+    }
+
+    const products = await Product.find(filter).sort(sortOptions);
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({
+        message: "No products found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Product search failed",
+      error: error.message,
+    });
   }
-
-  return res.status(200).json({
-    message: "Product deleted successfully",
-    deletedProduct,
-  });
-});
-
-router.get("/searchProduct", async (req, res) => {
-  const { name } = req.query;
-
-  const products = await Product.find({
-    name: { $regex: name, $options: "i" },
-  });
-
-  if (products.length === 0) {
-    return res.status(404).send("No result.");
-  }
-  res.status(200).json({
-    products,
-  });
 });
 
 export default router;

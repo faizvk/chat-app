@@ -1,11 +1,11 @@
-import jsonwebtoken from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
 const secret = process.env.SECRET_KEY;
 
 const createToken = (user) => {
-  let token = jsonwebtoken.sign(
+  let token = jwt.sign(
     {
       id: user._id,
       email: user.email,
@@ -33,7 +33,7 @@ const verifyToken = (req, res, next) => {
 
     token = token.split(" ")[1];
 
-    const user = jsonwebtoken.verify(token, secret);
+    const user = jwt.verify(token, secret);
 
     req.user = user;
     next();
