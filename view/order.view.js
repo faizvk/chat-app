@@ -56,6 +56,24 @@ router.post("/order/place", verifyToken, async (req, res) => {
   }
 });
 
+router.get("/orders", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/order/track/:id", verifyToken, async (req, res) => {
   try {
     const { id: orderId } = req.params;

@@ -36,6 +36,58 @@ router.post(
   }
 );
 
+router.get("/product/search", async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      minPrice,
+      maxPrice,
+      sortBy,
+      order = "asc",
+    } = req.query;
+
+    let filter = {};
+
+    if (name) {
+      filter.name = { $regex: name, $options: "i" };
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (minPrice || maxPrice) {
+      filter.salePrice = {};
+      if (minPrice) filter.salePrice.$gte = Number(minPrice);
+      if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
+    }
+
+    let sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = order === "desc" ? -1 : 1;
+    }
+
+    const products = await Product.find(filter).sort(sortOptions);
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({
+        message: "No products found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Product search failed",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/product", async (req, res) => {
   try {
     const products = await Product.find();
@@ -163,57 +215,5 @@ router.delete(
     }
   }
 );
-
-router.get("/product/search", async (req, res) => {
-  try {
-    const {
-      name,
-      category,
-      minPrice,
-      maxPrice,
-      sortBy,
-      order = "asc",
-    } = req.query;
-
-    let filter = {};
-
-    if (name) {
-      filter.name = { $regex: name, $options: "i" };
-    }
-
-    if (category) {
-      filter.category = category;
-    }
-
-    if (minPrice || maxPrice) {
-      filter.salePrice = {};
-      if (minPrice) filter.salePrice.$gte = Number(minPrice);
-      if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
-    }
-
-    let sortOptions = {};
-    if (sortBy) {
-      sortOptions[sortBy] = order === "desc" ? -1 : 1;
-    }
-
-    const products = await Product.find(filter).sort(sortOptions);
-
-    if (!products || products.length === 0) {
-      return res.status(404).json({
-        message: "No products found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      products,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Product search failed",
-      error: error.message,
-    });
-  }
-});
 
 export default router;
