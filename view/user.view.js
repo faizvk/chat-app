@@ -1,7 +1,12 @@
 import express from "express";
 import mongoose from "mongoose";
 import User from "../model/user.model.js";
-import { createToken, verifyToken } from "../auth/auth.middleware.js";
+import {
+  createAccessToken,
+  createRefreshToken,
+  verifyToken,
+  verifyRefreshToken,
+} from "../auth/auth.middleware.js";
 
 const router = express.Router();
 
@@ -64,12 +69,19 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = createToken(user);
+    const accessToken = createAccessToken(user);
+    const refreshToken = createRefreshToken(user);
 
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: false, // true in production
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     res.status(200).json({
       message: "User logged in successfully",
       success: true,
-      token,
+      accessToken,
       user,
     });
   } catch (error) {
@@ -80,7 +92,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.get("/logout", verifyToken, async (req, res) => {
+router.post("/refresh", verifyRefreshToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const accessToken = createAccessToken(user);
+
+    res.status(200).json({ accessToken });
+  } catch (error) {
+    res.status(500).json({ message: "Refresh failed" });
+  }
+});
+
+router.get("/logout", async (req, res) => {
+  res.clearCookie("refreshToken");
   res.status(200).json({
     message: "Logged out successfully",
     success: true,

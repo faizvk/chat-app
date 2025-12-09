@@ -4,27 +4,39 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
-//Route Imports
+// Route Imports
 import userRoutes from "./view/user.view.js";
 import productRoutes from "./view/product.view.js";
 import cartRoutes from "./view/cart.view.js";
 import orderRoutes from "./view/order.view.js";
 
 dotenv.config();
-
 const app = express();
 
-//SECURITY & MIDDLEWARE
-
+// SECURITY
 app.set("trust proxy", 1);
-
 app.use(helmet());
-app.use(cors());
+
+// ⭐ CORRECT CORS FOR REFRESH TOKEN COOKIE
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Needed for reading refreshToken cookie
+app.use(cookieParser());
+
 app.use(express.json());
 
+// RATE LIMITING
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
@@ -36,45 +48,42 @@ const limiter = rateLimit({
 
 app.use("/api", limiter);
 
-//DATABASE CONNECTION
-const MONGO_URI = process.env.MONGOOSE_URI;
-
+// DB CONNECTION
 mongoose
-  .connect(MONGO_URI)
+  .connect(process.env.MONGOOSE_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1); // ✅ Kill server if DB fails
+    process.exit(1);
   });
 
+// ROUTES
 app.use("/api", userRoutes);
 app.use("/api", productRoutes);
 app.use("/api", cartRoutes);
 app.use("/api", orderRoutes);
 
+// HEALTH CHECK
 app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Server is healthy",
-  });
+  res.status(200).json({ success: true, message: "Server is healthy" });
 });
 
+// GLOBAL ERROR HANDLER
 app.use((err, req, res, next) => {
   console.error("🔥 ERROR:", err.stack);
-
   res.status(err.status || 500).json({
     success: false,
     message: err.message || "Internal Server Error",
   });
 });
 
-// server start
+// START SERVER
 const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
-
+// GRACEFUL SHUTDOWN
 process.on("SIGTERM", () => {
   console.log("🛑 SIGTERM received. Shutting down gracefully...");
   server.close(() => {

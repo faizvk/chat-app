@@ -2,18 +2,36 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
-const secret = process.env.SECRET_KEY;
+const accessSecret = process.env.ACCESS_SECRET_KEY;
+const refreshSecret = process.env.REFRESH_SECRET_KEY;
 
-const createToken = (user) => {
+const createAccessToken = (user) => {
   let token = jwt.sign(
     {
       id: user._id,
       email: user.email,
       role: user.role,
     },
-    secret,
+    accessSecret,
     {
-      expiresIn: "1y",
+      expiresIn: "15m",
+      algorithm: "HS256",
+      issuer: "faiz",
+    }
+  );
+  return token;
+};
+
+const createRefreshToken = (user) => {
+  let token = jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+    },
+    refreshSecret,
+    {
+      expiresIn: "7d",
       algorithm: "HS256",
       issuer: "faiz",
     }
@@ -23,7 +41,7 @@ const createToken = (user) => {
 
 const verifyToken = (req, res, next) => {
   try {
-    let token = req.headers.authorization;
+    let token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
@@ -31,11 +49,9 @@ const verifyToken = (req, res, next) => {
       });
     }
 
-    token = token.split(" ")[1];
+    const decoded = jwt.verify(token, accessSecret);
 
-    const user = jwt.verify(token, secret);
-
-    req.user = user;
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({
@@ -43,5 +59,25 @@ const verifyToken = (req, res, next) => {
     });
   }
 };
+const verifyRefreshToken = (req, res, next) => {
+  const token = req.cookies.refreshToken;
 
-export { createToken, verifyToken };
+  if (!token) {
+    return res.status(401).json({ message: "Refresh token missing" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, refreshSecret);
+    req.user = decoded; // attach user to request
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid refresh token" });
+  }
+};
+
+export {
+  createAccessToken,
+  createRefreshToken,
+  verifyToken,
+  verifyRefreshToken,
+};
