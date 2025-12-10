@@ -6,9 +6,6 @@ import AutherizeRole from "../auth/role.middleware.js";
 
 const router = express.Router();
 
-/* -----------------------------------------------------
-    ADMIN: CREATE PRODUCT
------------------------------------------------------- */
 router.post(
   "/product",
   verifyToken,
@@ -45,9 +42,6 @@ router.post(
   }
 );
 
-/* -----------------------------------------------------
-    SEARCH PRODUCTS
------------------------------------------------------- */
 router.get("/product/search", async (req, res) => {
   try {
     const {
@@ -83,9 +77,6 @@ router.get("/product/search", async (req, res) => {
   }
 });
 
-/* -----------------------------------------------------
-    LIST PRODUCTS (pagination)
------------------------------------------------------- */
 router.get("/product", async (req, res) => {
   try {
     let { page = 1, limit = 20 } = req.query;
@@ -114,9 +105,6 @@ router.get("/product", async (req, res) => {
   }
 });
 
-/* -----------------------------------------------------
-    GET SINGLE PRODUCT
------------------------------------------------------- */
 router.get("/product/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -137,9 +125,6 @@ router.get("/product/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------------------
-    ADMIN: UPDATE PRODUCT (also handles stock updates)
------------------------------------------------------- */
 router.put(
   "/product/:id",
   verifyToken,
@@ -178,9 +163,6 @@ router.put(
   }
 );
 
-/* -----------------------------------------------------
-    ADMIN: DELETE PRODUCT
------------------------------------------------------- */
 router.delete(
   "/product/:id",
   verifyToken,

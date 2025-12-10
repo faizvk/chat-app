@@ -7,9 +7,6 @@ import AutherizeRole from "../auth/role.middleware.js";
 
 const router = express.Router();
 
-/* -----------------------------------------
-   Helpers
------------------------------------------- */
 const isValid = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const calculateTotal = (cart) => {
@@ -19,9 +16,6 @@ const calculateTotal = (cart) => {
   );
 };
 
-/* -----------------------------------------
-   GET CART (Users Only)
------------------------------------------- */
 router.get("/cart", verifyToken, AutherizeRole("user"), async (req, res) => {
   try {
     const userId = req.user.id;
@@ -44,14 +38,6 @@ router.get("/cart", verifyToken, AutherizeRole("user"), async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   PATCH /cart/item
-   Unified Route:
-   - add
-   - increase
-   - decrease
-   - remove
------------------------------------------- */
 router.patch(
   "/cart/item",
   verifyToken,
@@ -82,10 +68,6 @@ router.patch(
         (item) => item.productId.toString() === productId
       );
       const item = cart.products[index];
-
-      /* -----------------------------------
-         ACTION HANDLING
-      ----------------------------------- */
 
       if (action === "add") {
         if (!item) {
@@ -133,9 +115,6 @@ router.patch(
         cart.products.splice(index, 1);
       }
 
-      /* -----------------------------------
-         SAVE + RESPOND
-      ----------------------------------- */
       calculateTotal(cart);
       await cart.save();
 

@@ -17,9 +17,6 @@ const validStatus = [
   "cancelled",
 ];
 
-/* -----------------------------------------------------
-    USER: PLACE ORDER
------------------------------------------------------- */
 router.post(
   "/order/place",
   verifyToken,
@@ -65,9 +62,6 @@ router.post(
   }
 );
 
-/* -----------------------------------------------------
-    USER: VIEW MY ORDERS
------------------------------------------------------- */
 router.get("/orders", verifyToken, AutherizeRole("user"), async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.user.id })
@@ -162,9 +156,6 @@ router.put("/order/cancel/:id", verifyToken, async (req, res) => {
   }
 });
 
-/* -----------------------------------------------------
-    ADMIN: VIEW ALL ORDERS
------------------------------------------------------- */
 router.get(
   "/admin/orders",
   verifyToken,
@@ -186,9 +177,6 @@ router.get(
   }
 );
 
-/* -----------------------------------------------------
-    ADMIN: UPDATE ORDER STATUS
------------------------------------------------------- */
 router.put(
   "/admin/order/status/:id",
   verifyToken,
